@@ -40,7 +40,7 @@ Otherwise, place `wg_namespace_cli` in `/usr/local/bin/`, or in a location of yo
 * If using systemd service – create a service drop-in and specify the IP for the interface. E.g.:
 
     ```
-    (root) # systemd edit wg-netnamespace@wg0
+    (root) # systemctl edit wg-netnamespace@wg0
     [Service]
     Environment=MY_IP=10.8.1.101
     ```
