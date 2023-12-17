@@ -58,9 +58,11 @@ SystemCallFilter=~@debug
 SystemCallFilter=~@module
 SystemCallFilter=~@reboot
 SystemCallFilter=~@privileged
-SystemCallFilter=~@mount
 SystemCallFilter=~@resources
 SystemCallFilter=~@chown
+
+# This setting breaks adding the namespace
+#SystemCallFilter=~@mount
 
 [Install]
 WantedBy=multi-user.target
