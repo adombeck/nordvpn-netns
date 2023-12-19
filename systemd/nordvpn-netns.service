@@ -1,6 +1,5 @@
 [Unit]
 Documentation=man:wg(8)
-Documentation=man:wg_namespace_cli(8)
 Description=WireGuard isolated network namespace
 Wants=network-online.target nss-lookup.target
 After=network-online.target nss-lookup.target
