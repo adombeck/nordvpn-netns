@@ -18,4 +18,6 @@ install -m 644 "${DIR}/systemd/nordvpn-netns.service" /usr/local/lib/systemd/sys
 install -d -m 700 /etc/netns/nordvpn
 install -m 600 "${DIR}/resolv.conf" /etc/netns/nordvpn
 
+install -d -m 700 /etc/nordvpn-netns
+
 systemctl daemon-reload
