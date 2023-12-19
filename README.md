@@ -50,6 +50,8 @@ After=nordvpn-netns.service
 [Service]
 NetworkNamespacePath=/run/netns/nordvpn
 BindReadOnlyPaths=/etc/netns/nordvpn/resolv.conf:/etc/resolv.conf:norbind
+# Using the network namespace doesn't work without PrivateMounts=no  
+PrivateMounts=no
 ```
 
 ## Credits
