@@ -105,6 +105,11 @@ up() {
     # Route all traffic through the WireGuard interface
     ip -j -n "${WG_NAME}" route add default dev "${WG_NAME}"
     echo >&2 "Namespace ${WG_NAME} is up"
+
+    if [[ -v NOTIFY_SOCKET ]]; then
+        echo >&2 "Signalling readiness to systemd via sd_notify"
+        systemd-notify --ready
+    fi
 }
 
 down() {
