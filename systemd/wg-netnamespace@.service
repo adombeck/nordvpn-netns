@@ -8,16 +8,12 @@ After=network-online.target nss-lookup.target
 [Service]
 # See systemd.directives
 Type=oneshot
-# Set this in dropin
-# Environment=MY_IP=
 
-# This variable when set to something tells the underlying script to use CREDENTIALS_DIRECTORY
-Environment=STOCK_SERVICE=1
 ExecStart=wg_namespace_cli up %i
 ExecStop=wg_namespace_cli down %i
 RemainAfterExit=yes
 
-LoadCredential=%i.conf:/etc/wireguard/%i.conf
+LoadCredential=%i.key:/etc/wireguard/%i.key
 
 ; ConfigurationDirectory=wg_namespace_cli
 ; ConfigurationDirectoryMode=0600

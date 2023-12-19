@@ -1,68 +1,123 @@
 #!/usr/bin/env bash
 
-# A simple script that manages network namespace routed through a wireguard interface
+# Create a network namespace with a WireGuard interface and route all
+# traffic through it. The WireGuard interface is configured to use
+# NordVPN.
+#
 # Usage:
 # $0 [up|down]
 # Some configuration is available through environment variables
 # See manual for details
 #
-# Author: Vladimir Timofeenko <vladimir@vtimofeenko.com>
-# Bugs-to: https://github.com/VTimofeenko/wireguard-namespace-service/issues
-# License: Unlicense
+# Based on https://github.com/VTimofeenko/wireguard-namespace-service
 
 set -euo pipefail
-set -o errtrace
 set -x
 
-# STOCK_SERVICE variable should be set by the accompanying systemd service
-if [ -z ${STOCK_SERVICE+x} ]; then
-    BASE_CONF_DIR=${CREDENTIALS_DIRECTORY:-'/etc/wireguard'}
-else
-    BASE_CONF_DIR=${BASE_CONF_DIR:-'/etc/wireguard'}
-fi
+# The WireGuard interface IP address. Defaults to the address which
+# the `nordvpn` command assigns to the interface (10.5.0.2/32).
+WG_IP=${WG_IP:-"10.5.0.2/32"}
 
-command="$1"
-conf_file="$2"
+# The country code to use for the NordVPN server. Default to Switzerland.
+WG_COUNTRY_CODE=${COUNTRY_CODE:-"CH"}
 
-# The default name to be used for link name, config file name, etc.
-# Useful to override all of them at the same time
-DEFAULT_NAME="wg0"
+# The command to run. Either `up` or `down`.
+COMMAND="$1"
+# The name to be used for the namespace, link name and config file name
+NAME="$2"
 
-NAMESPACE_NAME=${NAMESPACE_NAME:-${DEFAULT_NAME}}
-LINK_NAME=${LINK_NAME:-${DEFAULT_NAME}}
-WG_CONF_FILE=${WG_CONF_FILE:-"${BASE_CONF_DIR}/${conf_file:-"${DEFAULT_NAME}"}.conf"}
+# A file containing the WireGuard private key.
+WG_PRIVATE_KEY="/etc/wireguard/${NAME}.key"
 
-trap down ERR
+recommended_nordvpn_server() {
+  local url response country_id
+  echo >&2 "Finding recommended NordVPN server for country code ${WG_COUNTRY_CODE}"
+
+  # Get the country ID from the country code
+  url="https://api.nordvpn.com/v1/servers/countries"
+  country_id=$(curl --silent --show-error "${url}" | jq -r ".[] | select(.code == \"${WG_COUNTRY_CODE}\") | .id")
+
+  # Get the recommended server for the country
+  url="https://api.nordvpn.com/v1/servers/recommendations\
+?filters\[country_id\]=${country_id}\
+&\[servers_technologies\]\[identifier\]=wireguard_udp\
+&\[servers_groups\]\[identifier\]=P2P\
+&limit=1"
+  response=$(curl --silent --show-error "${url}")
+
+  # Print the hostname and public key
+  jq '.[] |
+    {
+      hostname,
+      public_key: (
+        .technologies[] |
+        select(.identifier == "wireguard_udp").metadata[] |
+        select(.name == "public_key").value
+      )
+    }' <<< "${response}"
+}
 
 up() {
-    if [ -z ${MY_IP+x} ]; then
-        echo "MY_IP variable is unset, please set it"
-        exit 1;
+    local recommended_server hostname public_key
+
+    # Ensure that the namespace is down before starting
+    down >/dev/null 2>&1 || true
+
+    echo >&2 "Starting namespace ${NAME}"
+
+    # Create the namespace
+    ip netns add "$NAME"
+
+    # Set the loopback interface up (required for transmission to be
+    # able to bind to the interface)
+    ip -n "${NAME}" link set lo up
+
+    # Create the WireGuard interface
+    ip link add "${NAME}" type wireguard
+
+    recommended_server=$(recommended_nordvpn_server)
+    hostname=$(jq -r '.hostname' <<< "${recommended_server}")
+    public_key=$(jq -r '.public_key' <<< "${recommended_server}")
+
+    echo >&2 "Connecting to ${hostname}"
+
+    # Assert that the hostname starts with the country code in lowercase.
+    # The double comma is a bashism to convert the variable to lowercase.
+    if [[ ! "${hostname}" =~ ^"${WG_COUNTRY_CODE,,}" ]]; then
+        echo >&2 "Hostname ${hostname} does not start with ${WG_COUNTRY_CODE,,}"
+        exit 1
     fi
 
-    ip netns add "$NAMESPACE_NAME"
-    # create the interface
-    ip link add "${LINK_NAME}" type wireguard
-    # move the ${LINK_NAME} device into netns
-    ip link set "${LINK_NAME}" netns "$NAMESPACE_NAME"
-    # set device config
-    ip netns exec "${NAMESPACE_NAME}" wg setconf "${LINK_NAME}" "${WG_CONF_FILE}"
-    ip -n "${NAMESPACE_NAME}" addr add "${MY_IP}" dev "${LINK_NAME}"
-    ip -n "${NAMESPACE_NAME}" link set mtu 1420 up dev "${LINK_NAME}"
-    # all routing will go through "${LINK_NAME}"
-    ip -j -n "${NAMESPACE_NAME}" route add default dev "${LINK_NAME}"
-    echo "Namespace ${NAMESPACE_NAME} is up"
+    # Set the WireGuard private key and peer. Do this before moving the
+    # interface into the namespace so that the hostname can be resolved.
+    wg set "${NAME}" \
+       private-key "${WG_PRIVATE_KEY}" \
+       peer "${public_key}" \
+       endpoint "${hostname}:51820" \
+       allowed-ips 0.0.0.0/0,::0/0
+
+    # Move the WireGuard interface into the namespace
+    ip link set "${NAME}" netns "$NAME"
+
+    # Configure the WireGuard interface
+    ip -n "${NAME}" addr add "${WG_IP}" dev "${NAME}"
+    ip -n "${NAME}" link set mtu 1420 up dev "${NAME}"
+
+    # Route all traffic through the WireGuard interface
+    ip -j -n "${NAME}" route add default dev "${NAME}"
+    echo >&2 "Namespace ${NAME} is up"
 }
 
 down() {
-    ip -n "${NAMESPACE_NAME}" link set down dev "${LINK_NAME}"
-    ip -n "${NAMESPACE_NAME}" link del dev "${LINK_NAME}"
-    ip netns del "${NAMESPACE_NAME}"
-    echo "Namespace ${NAMESPACE_NAME} is down"
+    echo >&2 "Stopping namespace ${NAME}"
+    ip -n "${NAME}" link set down dev "${NAME}" || true
+    ip -n "${NAME}" link del dev "${NAME}" || true
+    ip netns del "${NAME}" || true
+    ip link del "${NAME}" || true
+    echo >&2 "Namespace ${NAME} is down"
 }
 
-
-case "$command" in
+case "$COMMAND" in
     up) up "$@" ;;
     down) down "$@" ;;
 esac
