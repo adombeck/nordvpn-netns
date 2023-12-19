@@ -8,8 +8,6 @@
 # $0 [up|down]
 # Some configuration is available through environment variables
 # See manual for details
-#
-# Based on https://github.com/VTimofeenko/wireguard-namespace-service
 
 set -euo pipefail
 set -x
