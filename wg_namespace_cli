@@ -14,6 +14,9 @@
 set -euo pipefail
 set -x
 
+# The name to be used for the namespace, link name and config file name
+WG_NAME=${WG_NAME:-"nordvpn"}
+
 # The WireGuard interface IP address. Defaults to the address which
 # the `nordvpn` command assigns to the interface (10.5.0.2/32).
 WG_IP=${WG_IP:-"10.5.0.2/32"}
@@ -21,13 +24,11 @@ WG_IP=${WG_IP:-"10.5.0.2/32"}
 # The country code to use for the NordVPN server. Default to Switzerland.
 WG_COUNTRY_CODE=${COUNTRY_CODE:-"CH"}
 
+# A file containing the WireGuard private key.
+WG_PRIVATE_KEY="/etc/wireguard/${WG_NAME}.key"
+
 # The command to run. Either `up` or `down`.
 COMMAND="$1"
-# The name to be used for the namespace, link name and config file name
-NAME="$2"
-
-# A file containing the WireGuard private key.
-WG_PRIVATE_KEY="/etc/wireguard/${NAME}.key"
 
 recommended_nordvpn_server() {
   local url response country_id
@@ -63,17 +64,17 @@ up() {
     # Ensure that the namespace is down before starting
     down >/dev/null 2>&1 || true
 
-    echo >&2 "Starting namespace ${NAME}"
+    echo >&2 "Starting namespace ${WG_NAME}"
 
     # Create the namespace
-    ip netns add "$NAME"
+    ip netns add "${WG_NAME}"
 
     # Set the loopback interface up (required for transmission to be
     # able to bind to the interface)
-    ip -n "${NAME}" link set lo up
+    ip -n "${WG_NAME}" link set lo up
 
     # Create the WireGuard interface
-    ip link add "${NAME}" type wireguard
+    ip link add "${WG_NAME}" type wireguard
 
     recommended_server=$(recommended_nordvpn_server)
     hostname=$(jq -r '.hostname' <<< "${recommended_server}")
@@ -90,31 +91,31 @@ up() {
 
     # Set the WireGuard private key and peer. Do this before moving the
     # interface into the namespace so that the hostname can be resolved.
-    wg set "${NAME}" \
+    wg set "${WG_NAME}" \
        private-key "${WG_PRIVATE_KEY}" \
        peer "${public_key}" \
        endpoint "${hostname}:51820" \
        allowed-ips 0.0.0.0/0,::0/0
 
     # Move the WireGuard interface into the namespace
-    ip link set "${NAME}" netns "$NAME"
+    ip link set "${WG_NAME}" netns "${WG_NAME}"
 
     # Configure the WireGuard interface
-    ip -n "${NAME}" addr add "${WG_IP}" dev "${NAME}"
-    ip -n "${NAME}" link set mtu 1420 up dev "${NAME}"
+    ip -n "${WG_NAME}" addr add "${WG_IP}" dev "${WG_NAME}"
+    ip -n "${WG_NAME}" link set mtu 1420 up dev "${WG_NAME}"
 
     # Route all traffic through the WireGuard interface
-    ip -j -n "${NAME}" route add default dev "${NAME}"
-    echo >&2 "Namespace ${NAME} is up"
+    ip -j -n "${WG_NAME}" route add default dev "${WG_NAME}"
+    echo >&2 "Namespace ${WG_NAME} is up"
 }
 
 down() {
-    echo >&2 "Stopping namespace ${NAME}"
-    ip -n "${NAME}" link set down dev "${NAME}" || true
-    ip -n "${NAME}" link del dev "${NAME}" || true
-    ip netns del "${NAME}" || true
-    ip link del "${NAME}" || true
-    echo >&2 "Namespace ${NAME} is down"
+    echo >&2 "Stopping namespace ${WG_NAME}"
+    ip -n "${WG_NAME}" link set down dev "${WG_NAME}" || true
+    ip -n "${WG_NAME}" link del dev "${WG_NAME}" || true
+    ip netns del "${WG_NAME}" || true
+    ip link del "${WG_NAME}" || true
+    echo >&2 "Namespace ${WG_NAME} is down"
 }
 
 case "$COMMAND" in

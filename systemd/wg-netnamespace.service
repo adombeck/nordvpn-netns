@@ -1,7 +1,7 @@
 [Unit]
 Documentation=man:wg(8)
 Documentation=man:wg_namespace_cli(8)
-Description=WireGuard isolated network namespace (%i)
+Description=WireGuard isolated network namespace
 Wants=network-online.target nss-lookup.target
 After=network-online.target nss-lookup.target
 
@@ -9,11 +9,10 @@ After=network-online.target nss-lookup.target
 # See systemd.directives
 Type=oneshot
 
-ExecStart=wg_namespace_cli up %i
-ExecStop=wg_namespace_cli down %i
+ExecStart=wg_namespace_cli up
+ExecStop=wg_namespace_cli down
 RemainAfterExit=yes
-
-LoadCredential=%i.key:/etc/wireguard/%i.key
+LoadCredential=nordvpn.key:/etc/wireguard/nordvpn.key
 
 ; ConfigurationDirectory=wg_namespace_cli
 ; ConfigurationDirectoryMode=0600
