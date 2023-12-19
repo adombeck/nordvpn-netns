@@ -1,20 +1,16 @@
 [Unit]
 Documentation=man:wg(8)
-Description=WireGuard isolated network namespace
+Description=NordVPN isolated network namespace
 Wants=network-online.target nss-lookup.target
 After=network-online.target nss-lookup.target
 
 [Service]
-# See systemd.directives
 Type=oneshot
 
 ExecStart=nordvpn-netns up
 ExecStop=nordvpn-netns down
 RemainAfterExit=yes
 LoadCredential=nordvpn.key:/etc/wireguard/nordvpn.key
-
-; ConfigurationDirectory=wg_namespace_cli
-; ConfigurationDirectoryMode=0600
 
 # General protection settings
 CapabilityBoundingSet=CAP_SYS_ADMIN CAP_NET_ADMIN
@@ -42,11 +38,11 @@ RestrictAddressFamilies=AF_NETLINK
 
 NoNewPrivileges=true
 RestrictRealtime=true
-SystemCallFilter=~@cpu-emulation
-SystemCallFilter=~@obsolete
 LockPersonality=true
 SystemCallArchitectures=native
 MemoryDenyWriteExecute=true
+SystemCallFilter=~@cpu-emulation
+SystemCallFilter=~@obsolete
 SystemCallFilter=~@clock
 SystemCallFilter=~@debug
 SystemCallFilter=~@module
