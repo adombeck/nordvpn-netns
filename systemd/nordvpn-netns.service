@@ -9,8 +9,8 @@ After=network-online.target nss-lookup.target
 # See systemd.directives
 Type=oneshot
 
-ExecStart=wg_namespace_cli up
-ExecStop=wg_namespace_cli down
+ExecStart=nordvpn-netns up
+ExecStop=nordvpn-netns down
 RemainAfterExit=yes
 LoadCredential=nordvpn.key:/etc/wireguard/nordvpn.key
 

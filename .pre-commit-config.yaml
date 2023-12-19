@@ -9,6 +9,6 @@ repos:
     hooks:
       - id: systemd-analyze
         name: systemd-analyze
-        entry: systemd-analyze --no-pager verify systemd/wg-netnamespace.service
-        files: 'systemd/wg-netnamespace.service'
+        entry: systemd-analyze --no-pager verify systemd/nordvpn-netns.service
+        files: 'systemd/nordvpn-netns.service'
         language: system
