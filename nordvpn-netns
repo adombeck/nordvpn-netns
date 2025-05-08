@@ -23,7 +23,7 @@ WG_IP=${WG_IP:-"10.5.0.2/32"}
 WG_COUNTRY_CODE=${COUNTRY_CODE:-"CH"}
 
 # A file containing the WireGuard private key.
-WG_PRIVATE_KEY="/etc/nordvpn-netns/${WG_NAME}.key"
+WG_PRIVATE_KEY="${CREDENTIALS_DIRECTORY:-/etc/nordvpn-netns}/${WG_NAME}.key"
 
 # The command to run. Either `up` or `down`.
 COMMAND="$1"

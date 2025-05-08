@@ -10,7 +10,7 @@ Type=notify
 ExecStart=nordvpn-netns up
 ExecStop=nordvpn-netns down
 RemainAfterExit=yes
-LoadCredential=nordvpn.key:/etc/wireguard/nordvpn.key
+LoadCredential=nordvpn.key:/etc/nordvpn-netns/nordvpn.key
 
 # General protection settings
 CapabilityBoundingSet=CAP_SYS_ADMIN CAP_NET_ADMIN
